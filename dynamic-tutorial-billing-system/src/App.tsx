@@ -28,7 +28,7 @@ interface BillData {
   centerAddress: string;
   centerContact: string;
   centerLogo: string;
-  signatureImage: string; // Added for permanent signature
+  signatureImage: string; 
   studentName: string;
   studentClass: string;
   rollNumber: string;
@@ -44,9 +44,7 @@ const initialData: BillData = {
   centerName: 'Dynamic Tutorial',
   centerAddress: '102/11 Vijay Nagar, Kanpur - 208005',
   centerContact: '+91 9598747692 | contact@dynamictutorial.in',
-  // INSERT LOGO LINK BELOW (Points to /public/img/logo.png)
   centerLogo: "/img/logo.png", 
-  // INSERT SIGNATURE IMAGE LINK BELOW (Points to /public/img/signature.png)
   signatureImage: "/img/signature.png", 
   studentName: '',
   studentClass: '',
