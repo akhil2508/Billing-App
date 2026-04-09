@@ -335,14 +335,6 @@ export default function App() {
 
           <div className="flex items-center gap-3">
             <button 
-              onClick={handleDownloadPDF}
-              disabled={isGenerating}
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
-            >
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {isGenerating ? 'Generating...' : 'Download PDF'}
-            </button>
-            <button 
               onClick={handlePrint}
               className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
             >
@@ -619,14 +611,6 @@ export default function App() {
                   Back to Edit
                 </button>
                 <div className="w-px h-6 bg-slate-200"></div>
-                <button
-                  onClick={handleDownloadPDF}
-                  disabled={isGenerating}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-                  {isGenerating ? 'Generating...' : 'Download PDF'}
-                </button>
                 <button
                   onClick={handlePrint}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2"
