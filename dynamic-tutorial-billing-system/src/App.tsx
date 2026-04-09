@@ -44,10 +44,10 @@ const initialData: BillData = {
   centerName: 'Dynamic Tutorial',
   centerAddress: '102/11 Vijay Nagar, Kanpur - 208005',
   centerContact: '+91 9598747692 | contact@dynamictutorial.in',
-  // INSERT LOGO LINK BELOW
-  centerLogo: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEiZO3-szpYL5vsyoxXvpHdf3YFOCH-G8Yss5YdTHtjpRUbFfhp8u-YOIio-3ODh7OrN8-WYeQ9DqD4pUZwLff2pu-GXXKLD3z6n9gz2f_qc4c5VSvfMApfalYssJJlQpf95UvJD87S4DETdVjilsk6T569cPzeG0OFxnfPiiUoyaqx9Vvr486BMhQjBHPhr/s320/Dynamic%20Tutorial%20Logo.png", 
-  // INSERT SIGNATURE IMAGE LINK BELOW
-  signatureImage: "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhLhh29EHogcVMJHb9L9cjln6xmCD-DZS4dAgFPNyVDeUTocbU14M30kfzLJFan1W0jaAvNGlBAZU_Pwz8LPR95VJNmSG5f2Q6bWe4H95tkfYssFSYBwCrIot3TAZhhGwaJRPx5I7AYlCoZN5jYFLDN2woYCu_YyOl_iAYDiWahtjFuhI2lmMRw3pJOB0qO/s320/Harsh%20Kumar%20Resume.jpg", 
+  // INSERT LOGO LINK BELOW (Points to /public/img/logo.png)
+  centerLogo: "/img/logo.png", 
+  // INSERT SIGNATURE IMAGE LINK BELOW (Points to /public/img/signature.png)
+  signatureImage: "/img/signature.png", 
   studentName: '',
   studentClass: '',
   rollNumber: '',
