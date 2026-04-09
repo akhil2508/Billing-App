@@ -11,7 +11,8 @@ import {
   CreditCard,
   FileText,
   ChevronRight,
-  Settings
+  Settings,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import html2pdf from 'html2pdf.js';
@@ -63,7 +64,9 @@ const initialData: BillData = {
 export default function App() {
   const [data, setData] = useState<BillData>(initialData);
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
+  const [isGenerating, setIsGenerating] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const pdfRef = useRef<HTMLDivElement>(null);
 
   const subtotal = useMemo(() => {
     return data.items.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -114,19 +117,177 @@ export default function App() {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
-    if (printRef.current) {
-      const element = printRef.current;
+  const handleDownloadPDF = async () => {
+    // Use the hidden PDF ref if available, otherwise fallback to printRef
+    const element = pdfRef.current || printRef.current;
+    
+    if (!element) {
+      console.error("PDF source element not found");
+      return;
+    }
+
+    try {
+      setIsGenerating(true);
+      
       const opt = {
         margin: 0,
         filename: `${data.studentName || 'Bill'}_${data.billNumber}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, logging: false },
+        html2canvas: { 
+          scale: 2, 
+          useCORS: true, 
+          logging: false,
+          letterRendering: true,
+          allowTaint: false
+        },
         jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' as const }
       };
-      html2pdf().set(opt).from(element).save();
+
+      // Ensure images are loaded before generating
+      await html2pdf().set(opt).from(element).save();
+      
+    } catch (error) {
+      console.error("PDF Generation Error:", error);
+      alert("Failed to generate PDF. Please try using the Print button instead.");
+    } finally {
+      setIsGenerating(false);
     }
   };
+
+  // Reusable Bill Content Component to avoid duplication
+  const BillContent = ({ isPdf = false }) => (
+    <div className={`bg-white w-full max-w-[800px] ${!isPdf ? 'shadow-2xl rounded-sm p-12 border border-slate-100' : 'p-12'} min-h-[1000px] flex flex-col`}>
+      {/* Bill Header */}
+      <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-8 mb-8">
+        <div className="flex gap-4 items-center">
+          {data.centerLogo && (
+            <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-100 flex-shrink-0">
+              <img 
+                src={data.centerLogo} 
+                alt="Logo" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+              />
+            </div>
+          )}
+          <div>
+            <h1 className="text-3xl font-bold text-slate-900 mb-1 uppercase tracking-tight leading-tight">{data.centerName}</h1>
+            <p className="text-slate-500 max-w-xs text-xs leading-relaxed">{data.centerAddress}</p>
+            <p className="text-slate-600 font-medium mt-1 text-xs">{data.centerContact}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="bg-indigo-600 text-white px-4 py-1 inline-block font-bold text-xl mb-4">INVOICE</div>
+          <div className="space-y-1 text-sm">
+            <p className="text-slate-400">Invoice No: <span className="text-slate-900 font-bold">{data.billNumber}</span></p>
+            <p className="text-slate-400">Date: <span className="text-slate-900 font-bold">{new Date(data.billDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span></p>
+          </div>
+        </div>
+      </div>
+
+      {/* Bill To */}
+      <div className="grid grid-cols-2 gap-8 mb-10">
+        <div className="bg-slate-50 p-6 rounded-lg">
+          <h3 className="text-xs font-bold text-indigo-600 uppercase mb-3 tracking-widest">Bill To Student</h3>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-slate-400" />
+              <p className="font-bold text-slate-800 text-lg">{data.studentName || 'N/A'}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <School className="w-4 h-4 text-slate-400" />
+              <p className="text-slate-600">Class: <span className="font-semibold">{data.studentClass || 'N/A'}</span></p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Hash className="w-4 h-4 text-slate-400" />
+              <p className="text-slate-600">Roll No: <span className="font-semibold">{data.rollNumber || 'N/A'}</span></p>
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-col justify-center items-end">
+          <div className="text-right">
+            <p className="text-slate-400 text-sm mb-1 uppercase font-bold tracking-tighter">Amount Due</p>
+            <p className="text-4xl font-black text-indigo-600">₹{total.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="flex-grow">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b-2 border-slate-200">
+              <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest">#</th>
+              <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest">Description</th>
+              <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest text-right">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {data.items.map((item, index) => (
+              <tr key={item.id} className="border-b border-slate-100">
+                <td className="py-4 text-slate-500 font-mono text-sm">{index + 1}</td>
+                <td className="py-4 text-slate-800 font-medium">{item.description || 'Untitled Fee'}</td>
+                <td className="py-4 text-slate-800 font-bold text-right">₹{item.amount.toLocaleString('en-IN')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Totals */}
+      <div className="mt-8 flex justify-end">
+        <div className="w-64 space-y-3">
+          <div className="flex justify-between text-slate-500 text-sm">
+            <span>Subtotal</span>
+            <span className="font-bold text-slate-800">₹{subtotal.toLocaleString('en-IN')}</span>
+          </div>
+          {taxAmount > 0 && (
+            <div className="flex justify-between text-slate-500 text-sm">
+              <span>Tax ({data.taxRate}%)</span>
+              <span className="font-bold text-slate-800">₹{taxAmount.toLocaleString('en-IN')}</span>
+            </div>
+          )}
+          {data.discount > 0 && (
+            <div className="flex justify-between text-green-600 text-sm">
+              <span>Discount</span>
+              <span className="font-bold">-₹{data.discount.toLocaleString('en-IN')}</span>
+            </div>
+          )}
+          <div className="pt-3 border-t-2 border-indigo-600 flex justify-between items-center">
+            <span className="font-bold text-slate-900">Grand Total</span>
+            <span className="text-2xl font-black text-indigo-600">₹{total.toLocaleString('en-IN')}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div className="mt-20 pt-10 border-t border-slate-100 grid grid-cols-2 gap-10">
+        <div>
+          <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Notes & Terms</h4>
+          <p className="text-xs text-slate-500 leading-relaxed italic">
+            {data.notes}
+          </p>
+        </div>
+        <div className="text-right flex flex-col items-end justify-end">
+          {data.signatureImage && (
+            <div className="mb-2">
+              <img 
+                src={data.signatureImage} 
+                alt="Signature" 
+                className="h-12 w-auto object-contain"
+                referrerPolicy="no-referrer"
+                crossOrigin="anonymous"
+              />
+            </div>
+          )}
+          <div className="w-40 border-b border-slate-300 mb-2"></div>
+          <p className="text-xs font-bold text-slate-800 uppercase tracking-widest">Authorized Signatory</p>
+          <p className="text-[10px] text-slate-400 mt-1">Computer Generated Receipt</p>
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50 pb-20">
@@ -177,10 +338,11 @@ export default function App() {
           <div className="flex items-center gap-3">
             <button 
               onClick={handleDownloadPDF}
-              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              disabled={isGenerating}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              Download PDF
+              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {isGenerating ? 'Generating...' : 'Download PDF'}
             </button>
             <button 
               onClick={handlePrint}
@@ -446,137 +608,8 @@ export default function App() {
               exit={{ opacity: 0, scale: 0.98 }}
               className="flex justify-center"
             >
-              <div 
-                ref={printRef}
-                className="bg-white w-full max-w-[800px] shadow-2xl rounded-sm p-12 border border-slate-100 min-h-[1000px] flex flex-col"
-              >
-                {/* Bill Header */}
-                <div className="flex justify-between items-start border-b-2 border-indigo-600 pb-8 mb-8">
-                  <div className="flex gap-4 items-center">
-                    {data.centerLogo && (
-                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-100 flex-shrink-0">
-                        <img 
-                          src={data.centerLogo} 
-                          alt="Logo" 
-                          className="w-full h-full object-cover"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <h1 className="text-3xl font-bold text-slate-900 mb-1 uppercase tracking-tight leading-tight">{data.centerName}</h1>
-                      <p className="text-slate-500 max-w-xs text-xs leading-relaxed">{data.centerAddress}</p>
-                      <p className="text-slate-600 font-medium mt-1 text-xs">{data.centerContact}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="bg-indigo-600 text-white px-4 py-1 inline-block font-bold text-xl mb-4">INVOICE</div>
-                    <div className="space-y-1 text-sm">
-                      <p className="text-slate-400">Invoice No: <span className="text-slate-900 font-bold">{data.billNumber}</span></p>
-                      <p className="text-slate-400">Date: <span className="text-slate-900 font-bold">{new Date(data.billDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span></p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bill To */}
-                <div className="grid grid-cols-2 gap-8 mb-10">
-                  <div className="bg-slate-50 p-6 rounded-lg">
-                    <h3 className="text-xs font-bold text-indigo-600 uppercase mb-3 tracking-widest">Bill To Student</h3>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <User className="w-4 h-4 text-slate-400" />
-                        <p className="font-bold text-slate-800 text-lg">{data.studentName || 'N/A'}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <School className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-600">Class: <span className="font-semibold">{data.studentClass || 'N/A'}</span></p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Hash className="w-4 h-4 text-slate-400" />
-                        <p className="text-slate-600">Roll No: <span className="font-semibold">{data.rollNumber || 'N/A'}</span></p>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col justify-center items-end">
-                    <div className="text-right">
-                      <p className="text-slate-400 text-sm mb-1 uppercase font-bold tracking-tighter">Amount Due</p>
-                      <p className="text-4xl font-black text-indigo-600">₹{total.toLocaleString('en-IN')}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Table */}
-                <div className="flex-grow">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b-2 border-slate-200">
-                        <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest">#</th>
-                        <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest">Description</th>
-                        <th className="py-4 font-bold text-slate-800 uppercase text-xs tracking-widest text-right">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.items.map((item, index) => (
-                        <tr key={item.id} className="border-b border-slate-100">
-                          <td className="py-4 text-slate-500 font-mono text-sm">{index + 1}</td>
-                          <td className="py-4 text-slate-800 font-medium">{item.description || 'Untitled Fee'}</td>
-                          <td className="py-4 text-slate-800 font-bold text-right">₹{item.amount.toLocaleString('en-IN')}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Totals */}
-                <div className="mt-8 flex justify-end">
-                  <div className="w-64 space-y-3">
-                    <div className="flex justify-between text-slate-500 text-sm">
-                      <span>Subtotal</span>
-                      <span className="font-bold text-slate-800">₹{subtotal.toLocaleString('en-IN')}</span>
-                    </div>
-                    {taxAmount > 0 && (
-                      <div className="flex justify-between text-slate-500 text-sm">
-                        <span>Tax ({data.taxRate}%)</span>
-                        <span className="font-bold text-slate-800">₹{taxAmount.toLocaleString('en-IN')}</span>
-                      </div>
-                    )}
-                    {data.discount > 0 && (
-                      <div className="flex justify-between text-green-600 text-sm">
-                        <span>Discount</span>
-                        <span className="font-bold">-₹{data.discount.toLocaleString('en-IN')}</span>
-                      </div>
-                    )}
-                    <div className="pt-3 border-t-2 border-indigo-600 flex justify-between items-center">
-                      <span className="font-bold text-slate-900">Grand Total</span>
-                      <span className="text-2xl font-black text-indigo-600">₹{total.toLocaleString('en-IN')}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer */}
-                <div className="mt-20 pt-10 border-t border-slate-100 grid grid-cols-2 gap-10">
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400 uppercase mb-2 tracking-widest">Notes & Terms</h4>
-                    <p className="text-xs text-slate-500 leading-relaxed italic">
-                      {data.notes}
-                    </p>
-                  </div>
-                  <div className="text-right flex flex-col items-end justify-end">
-                    {data.signatureImage && (
-                      <div className="mb-2">
-                        <img 
-                          src={data.signatureImage} 
-                          alt="Signature" 
-                          className="h-12 w-auto object-contain"
-                          referrerPolicy="no-referrer"
-                        />
-                      </div>
-                    )}
-                    <div className="w-40 border-b border-slate-300 mb-2"></div>
-                    <p className="text-xs font-bold text-slate-800 uppercase tracking-widest">Authorized Signatory</p>
-                    <p className="text-[10px] text-slate-400 mt-1">Computer Generated Receipt</p>
-                  </div>
-                </div>
+              <div ref={printRef}>
+                <BillContent />
               </div>
 
               {/* Floating Action Bar for Preview */}
@@ -590,10 +623,11 @@ export default function App() {
                 <div className="w-px h-6 bg-slate-200"></div>
                 <button
                   onClick={handleDownloadPDF}
-                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2"
+                  disabled={isGenerating}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-6 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg flex items-center gap-2 disabled:opacity-50"
                 >
-                  <Download className="w-4 h-4" />
-                  Download PDF
+                  {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                  {isGenerating ? 'Generating...' : 'Download PDF'}
                 </button>
                 <button
                   onClick={handlePrint}
@@ -607,6 +641,13 @@ export default function App() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Hidden PDF Source (Always in DOM for reliable generation) */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }} aria-hidden="true">
+        <div ref={pdfRef}>
+          <BillContent isPdf={true} />
+        </div>
+      </div>
 
       {/* Print Only View (Hidden in UI) */}
       <div className="print-only p-8">
